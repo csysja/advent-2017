@@ -1104,7 +1104,7 @@ function getSteps(offsets) {
     let position = 0;
     let steps = 0;
     while (position >= 0 && position < offsets.length) {
-        let pos = position;
+        const pos = position;
         position += offsets[pos];
         if (offsets[pos] >= 3) {
             offsets[pos]--;

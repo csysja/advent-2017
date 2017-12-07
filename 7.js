@@ -1967,7 +1967,7 @@ console.log(output);
 function getBottomProgram(rawInput) {
     const input = getInput(rawInput);
     const tree = getTree(input);
-    return tree[0];
+    return tree;
 }
 
 function getTree(input) {
@@ -1975,9 +1975,8 @@ function getTree(input) {
     result.forEach(programToMatch => {
         replaceChildPrograms(result, programToMatch);
     })
-    const index = result.findIndex(p => p.isTopLevel);
-    result = result.splice(index, 1);    
-    return result;
+    const index = result.findIndex(p => p.isTopLevel);;    
+    return result[index];
 }
 
 function replaceChildPrograms(result, programToMatch) {programToMatch

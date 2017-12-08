@@ -1961,13 +1961,22 @@ Array.prototype.clone = function() {
 	return this.slice(0);
 };
 
-const output = getBottomProgram(input);
+//const output = getBottomProgram(input); // Solution 1
+const output = getCorrectWeight(input); 
 console.log(output);
 
 function getBottomProgram(rawInput) {
     const input = getInput(rawInput);
     const tree = getTree(input);
     return tree;
+}
+
+function getCorrectWeight(rawInput) {
+    const input = getInput(rawInput);
+    const tree = getTree(input);
+    updateWithTotalWeight(tree);
+    const correctWeight = getLowestLevelNumberToCorrectImbalance(tree);
+    return correctWeight;
 }
 
 function getTree(input) {
@@ -1977,6 +1986,49 @@ function getTree(input) {
     })
     const index = result.findIndex(p => p.isTopLevel);;    
     return result[index];
+}
+
+function updateWithTotalWeight(tree) {
+    tree.totalTowerWeight = tree.childPrograms
+        .map(c => updateWithTotalWeight(c))
+        .reduce((a, b) => a + b, 0);
+    tree.totalTowerWeight += tree.weight;
+    return tree.totalTowerWeight;
+}
+
+function getLowestLevelNumberToCorrectImbalance(tree) {
+    let result = null;
+    let i = 0;
+    while (i < tree.childPrograms.length && result === null) {
+        result = getLowestLevelNumberToCorrectImbalance(tree.childPrograms[i]);
+        i++;
+    }
+
+    if (result === null) {
+        result = getNumberToCorrectImbalance(tree);
+    }
+
+    return result;
+}
+
+function getNumberToCorrectImbalance(tree) {
+    let result = null;
+    const groupedWeights = tree.childPrograms.reduce((a, b, i) => {
+        var item = a.find(i => i.totalWeight === b.totalTowerWeight);
+        if (item) {
+            item.indexes.push(i);
+        }
+        else {
+            a.push({ totalWeight: b.totalTowerWeight, indexes: [i] });
+        }
+        return a;
+    }, [])
+        .sort((a, b) => b.indexes.length - a.indexes.length);
+    if (groupedWeights.length > 1) {
+        result = tree.childPrograms[groupedWeights[1].indexes[0]].weight
+            + (groupedWeights[0].totalWeight - groupedWeights[1].totalWeight);
+    }
+    return result;
 }
 
 function replaceChildPrograms(result, programToMatch) {programToMatch
@@ -2000,6 +2052,7 @@ function getInput(input) {
             weight: parseInt(l[0].split(' ')[1].replace('(', '').replace(')', '')),
             childPrograms: l.length > 1 ? l[1].split(',').map(p => p.trim()) : [],
             isTopLevel: true,
+            totalTowerWeight: null
         }));
     return result;
 }

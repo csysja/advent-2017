@@ -48,37 +48,71 @@ const input = `0: 3
 4: 4
 6: 4`;*/
 
-const severity = getSeverity(input);
-console.log(severity);
-const delay = getDelay(input);
-console.log(`Delay ${delay}`);
+var cache = [];
+run();
 
-function getDelay(rawInput) {
+async function run() {
+    const severity = await getSeverity(input);
+    console.log(severity);
+    const delay = await getDelay(input);
+    console.log(`Delay ${delay}`);
+}
+
+async function getDelay(rawInput) {
     let delay = 0;
-    while (getSeverity(rawInput, delay).collided) {
+    const input = getInput(rawInput);
+    const maxRange = getMaxRange(input);
+    let collidedResult = await getHasCollided(input, delay, maxRange);
+    while (collidedResult.hasCollided) {
         delay++;
-        /*console.clear();
-        console.log(delay);*/
+        collidedResult = await getHasCollided(collidedResult.nextStartFrame, delay, maxRange);
     }
     return delay;
 }
 
-function getSeverity(rawInput, delay = 0) {
+async function getHasCollided(input, delay, maxRange) {
+    let frame = input;
+    let packetPos = 0;
+    let hasCollided = false;
+    const maxDepth = input[input.length-1].depth;
+    const numFrames = maxDepth + delay;
+    let i = delay;
+    let nextStartFrame = null;
+    while (i <= numFrames && !hasCollided) {
+        const layer = frame.find(l => l.depth === packetPos);                
+        if (layer && layer.scannerPos === 0) {
+            hasCollided = true;
+        }  
+        //await drawFrame(frame, maxDepth, maxRange, delay, i, packetPos, hasCollided);
+        packetPos++;  
+        frame = getNextFrame(frame, i);
+        if (!nextStartFrame) {
+            nextStartFrame = frame;
+        }
+        i++;
+    }
+    return { 
+        hasCollided: hasCollided,
+        nextStartFrame: nextStartFrame
+    };
+}
+
+async function getSeverity(rawInput) {
     const input = getInput(rawInput);
     let frame = input;
     let severity = 0;
-    let packetPos = 0;
     let hasCollided = false;
-    for (let i = 0; i <= input[input.length-1].depth + delay; i++) {
-        if (i >= delay) {
-            const layer = frame.find(l => l.depth === packetPos);                
-            if (layer && layer.scannerPos === 0) {
-                hasCollided = true;
-                severity += layer.depth * layer.range;
-            }
-            packetPos++;      
-        }
-        frame = getNextFrame(frame);    
+    const maxDepth = input[input.length-1].depth;
+    const numFrames = maxDepth;
+    const maxRange = getMaxRange(input);
+    for (let i = 0; i <= numFrames; i++) {
+        const layer = frame.find(l => l.depth === i);                
+        if (layer && layer.scannerPos === 0) {
+            hasCollided = true;
+            severity += layer.depth * layer.range;
+        }  
+        //await drawFrame(frame, maxDepth, maxRange, delay, i, packetPos, hasCollided);
+        frame = getNextFrame(frame, i);    
     }
     return { 
         severity: severity,
@@ -86,7 +120,54 @@ function getSeverity(rawInput, delay = 0) {
     };
 }
 
-function getNextFrame(currentFrame) {
+function getMaxRange(input) {
+    return input
+        .map(a => a)
+        .sort((a, b) => b.range - a.range)[0].range;
+}
+
+async function drawFrame(frame, maxDepth, maxRange, delay, frameNo, packetPos, hasCollided) {    
+    console.clear();
+    console.log(`Delay ${delay} frame ${frameNo} hasCollided ${hasCollided}`);
+    drawHeader(maxDepth);
+    for (let i = 0; i < maxRange; i++) {
+        let line = '';
+        for (let j = 0; j <= maxDepth; j++) {
+            const layer = frame.find(l => l.depth === j);
+            let txt = `    `;
+            const isPacketHere = packetPos === j && i === 0;
+            if (layer && i < layer.range) {
+                txt = `[ ] `;
+                if (layer.scannerPos === i && isPacketHere) {
+                    txt = `[X] `;
+                } else if (layer.scannerPos === i) {
+                    txt = `[S] `;
+                } else if (isPacketHere) {
+                    txt = `[P] `;
+                }
+            } else if (i === 0) {
+                txt = isPacketHere ? `.P. ` : `... `;
+            }
+            line += txt;            
+        }
+        console.log(line);
+    }
+    await sleep(500);
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function drawHeader(maxDepth) {
+    let header = '';
+    for (let i = 0; i <= maxDepth; i++) {
+        header += ` ${i}  `;
+    }
+    console.log(header);
+}
+
+function getNextFrame(currentFrame, frameNo) {
     return currentFrame.map(l => ({
         depth: l.depth,
         range: l.range,
